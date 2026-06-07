@@ -1,0 +1,6 @@
+{
+  "name": "Cloud ERP Sandbox",
+  "description": "Pearson BTEC HND Unit 6 Networking in the Cloud Sandbox. A redesigned cloud-native ERP, CRM, and WMS simulator showcasing VPC subnets, RDS monitoring, and high-performance, real-time sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
