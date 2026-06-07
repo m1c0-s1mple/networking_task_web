@@ -1,0 +1,60 @@
+{
+  "customers": [
+    {
+      "id": "cust-1",
+      "companyName": "Uzbek Apparel Group",
+      "contactPerson": "Alisher Usmonov",
+      "email": "alisher@uzapparel.uz",
+      "phone": "+998 90 123 4567",
+      "createdAt": "2026-05-18T10:00:00Z"
+    },
+    {
+      "id": "cust-2",
+      "companyName": "Tashkent Fashion House",
+      "contactPerson": "Dilnoza Karimova",
+      "email": "dilnoza@tfh.uz",
+      "phone": "+998 93 765 4321",
+      "createdAt": "2026-06-01T14:30:00Z"
+    },
+    {
+      "id": "cust-3",
+      "companyName": "Bukhara Silk & Cotton",
+      "contactPerson": "Jasur Botirov",
+      "email": "jasur@bukhara-cotton.uz",
+      "phone": "+998 94 456 7890",
+      "createdAt": "2026-06-05T09:15:00Z"
+    }
+  ],
+  "products": [
+    { "id": "prod-1", "name": "Premium Cotton Polo Shirt (Black)", "sku": "TS-BLK-POLO", "price": 24.99, "quantity": 180 },
+    { "id": "prod-2", "name": "Over-sized Comfort Hoodie (Grey)", "sku": "HD-GRY-OVR", "price": 45.00, "quantity": 8 },
+    { "id": "prod-3", "name": "Classic Denim Trucker Jacket", "sku": "DJ-BLU-CLASS", "price": 69.99, "quantity": 35 },
+    { "id": "prod-4", "name": "Slim-Fit Stretch Chino Pants", "sku": "CP-KHA-SLIM", "price": 34.50, "quantity": 120 },
+    { "id": "prod-5", "name": "Unisex Winter Parka Coat", "sku": "WC-NAV-PARKA", "price": 110.00, "quantity": 15 }
+  ],
+  "orders": [
+    {
+      "id": "ord-1001",
+      "customerId": "cust-1",
+      "customerName": "Uzbek Apparel Group",
+      "totalAmount": 474.90,
+      "status": "COMPLETED",
+      "createdAt": "2026-06-05T12:00:00Z",
+      "orderItems": [
+        { "id": "item-1", "orderId": "ord-1001", "productId": "prod-1", "productName": "Premium Cotton Polo Shirt (Black)", "quantity": 10, "price": 24.99 },
+        { "id": "item-2", "orderId": "ord-1001", "productId": "prod-2", "productName": "Over-sized Comfort Hoodie (Grey)", "quantity": 5, "price": 45.00 }
+      ]
+    },
+    {
+      "id": "ord-1002",
+      "customerId": "cust-2",
+      "customerName": "Tashkent Fashion House",
+      "totalAmount": 690.00,
+      "status": "PENDING",
+      "createdAt": "2026-06-06T15:30:00Z",
+      "orderItems": [
+        { "id": "item-3", "orderId": "ord-1002", "productId": "prod-4", "productName": "Slim-Fit Stretch Chino Pants", "quantity": 20, "price": 34.50 }
+      ]
+    }
+  ]
+}

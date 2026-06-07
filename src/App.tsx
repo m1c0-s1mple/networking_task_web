@@ -39,6 +39,7 @@ import {
   Cell
 } from 'recharts';
 import { Customer, Product, Order, OrderItem, User } from './types';
+import * as api from './services/api';
 
 // Root level state pre-sets
 const INITIAL_DEMO_USER: User = {
@@ -47,67 +48,6 @@ const INITIAL_DEMO_USER: User = {
   name: 'Sarah Jenkins',
   role: 'ADMIN'
 };
-
-const INITIAL_CUSTOMERS: Customer[] = [
-  {
-    id: 'cust-1',
-    companyName: 'Uzbek Apparel Group',
-    contactPerson: 'Alisher Usmonov',
-    email: 'alisher@uzapparel.uz',
-    phone: '+998 90 123 4567',
-    createdAt: '2026-05-18T10:00:00Z'
-  },
-  {
-    id: 'cust-2',
-    companyName: 'Tashkent Fashion House',
-    contactPerson: 'Dilnoza Karimova',
-    email: 'dilnoza@tfh.uz',
-    phone: '+998 93 765 4321',
-    createdAt: '2026-06-01T14:30:00Z'
-  },
-  {
-    id: 'cust-3',
-    companyName: 'Bukhara Silk & Cotton',
-    contactPerson: 'Jasur Botirov',
-    email: 'jasur@bukhara-cotton.uz',
-    phone: '+998 94 456 7890',
-    createdAt: '2026-06-05T09:15:00Z'
-  }
-];
-
-const INITIAL_PRODUCTS: Product[] = [
-  { id: 'prod-1', name: 'Premium Cotton Polo Shirt (Black)', sku: 'TS-BLK-POLO', price: 24.99, quantity: 180 },
-  { id: 'prod-2', name: 'Over-sized Comfort Hoodie (Grey)', sku: 'HD-GRY-OVR', price: 45.00, quantity: 8 }, // Low-stock threshold alert triggers early!
-  { id: 'prod-3', name: 'Classic Denim Trucker Jacket', sku: 'DJ-BLU-CLASS', price: 69.99, quantity: 35 },
-  { id: 'prod-4', name: 'Slim-Fit Stretch Chino Pants', sku: 'CP-KHA-SLIM', price: 34.50, quantity: 120 },
-  { id: 'prod-5', name: 'Unisex Winter Parka Coat', sku: 'WC-NAV-PARKA', price: 110.00, quantity: 15 }
-];
-
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ord-1001',
-    customerId: 'cust-1',
-    customerName: 'Uzbek Apparel Group',
-    totalAmount: 474.90,
-    status: 'COMPLETED',
-    createdAt: '2026-06-05T12:00:00Z',
-    orderItems: [
-      { id: 'item-1', orderId: 'ord-1001', productId: 'prod-1', productName: 'Premium Cotton Polo Shirt (Black)', quantity: 10, price: 24.99 },
-      { id: 'item-2', orderId: 'ord-1001', productId: 'prod-2', productName: 'Over-sized Comfort Hoodie (Grey)', quantity: 5, price: 45.00 }
-    ]
-  },
-  {
-    id: 'ord-1002',
-    customerId: 'cust-2',
-    customerName: 'Tashkent Fashion House',
-    totalAmount: 690.00,
-    status: 'PENDING',
-    createdAt: '2026-06-06T15:30:00Z',
-    orderItems: [
-      { id: 'item-3', orderId: 'ord-1002', productId: 'prod-4', productName: 'Slim-Fit Stretch Chino Pants', quantity: 20, price: 34.50 }
-    ]
-  }
-];
 
 export default function App() {
   // Authentication Guard States
@@ -119,20 +59,13 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [dataLoading, setDataLoading] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
   // Primary Domain Business State
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('erp_data_customers');
-    return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
-  });
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('erp_data_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('erp_data_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-  });
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // Navigation Panel Views
   const [activeTab, setActiveTab] = useState<'dashboard' | 'crm' | 'wms' | 'erp'>('dashboard');
@@ -163,18 +96,30 @@ export default function App() {
   const [selectedCustId, setSelectedCustId] = useState('');
   const [orderDraftItems, setOrderDraftItems] = useState<{ productId: string; quantity: number }[]>([]);
 
-  // Persistent States Synchronization
+  // Real-time synchronization loader
   useEffect(() => {
-    localStorage.setItem('erp_data_customers', JSON.stringify(customers));
-  }, [customers]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_data_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_data_orders', JSON.stringify(orders));
-  }, [orders]);
+    if (currentUser) {
+      const loadData = async () => {
+        setDataLoading(true);
+        setSyncError('');
+        try {
+          const [cList, pList, oList] = await Promise.all([
+            api.fetchCustomers(),
+            api.fetchProducts(),
+            api.fetchOrders()
+          ]);
+          setCustomers(cList);
+          setProducts(pList);
+          setOrders(oList);
+        } catch (err: any) {
+          setSyncError(err.message || 'API connection failed. Please ensure the server is active.');
+        } finally {
+          setDataLoading(false);
+        }
+      };
+      loadData();
+    }
+  }, [currentUser]);
 
   // Auth Submit Action Handlers
   const handleLogin = (e: React.FormEvent) => {
@@ -193,66 +138,77 @@ export default function App() {
     localStorage.removeItem('erp_active_user');
   };
 
-
-
   // Business Action Handlers: Customers Directory
-  const handleAddCustomer = (e: React.FormEvent) => {
+  const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCompanyName.trim() || !newContactPerson.trim() || !newEmail.trim()) return;
 
-    const added: Customer = {
-      id: `cust-${Date.now()}`,
-      companyName: newCompanyName.trim(),
-      contactPerson: newContactPerson.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim() || '+998 90 XXX XX XX',
-      createdAt: new Date().toISOString()
-    };
-
-    setCustomers(prev => [...prev, added]);
-    setNewCompanyName('');
-    setNewContactPerson('');
-    setNewEmail('');
-    setNewPhone('');
-    setCustomerModalOpen(false);
+    try {
+      const added = await api.createCustomer({
+        companyName: newCompanyName.trim(),
+        contactPerson: newContactPerson.trim(),
+        email: newEmail.trim(),
+        phone: newPhone.trim()
+      });
+      setCustomers(prev => [...prev, added]);
+      setNewCompanyName('');
+      setNewContactPerson('');
+      setNewEmail('');
+      setNewPhone('');
+      setCustomerModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Error occurred while creating client profile.');
+    }
   };
 
-  const handleDeleteCustomer = (id: string) => {
-    setCustomers(prev => prev.filter(c => c.id !== id));
+  const handleDeleteCustomer = async (id: string) => {
+    try {
+      await api.deleteCustomer(id);
+      setCustomers(prev => prev.filter(c => c.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Error deleting client.');
+    }
   };
 
   // Business Action Handlers: Product SKUs Inventory
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName.trim() || !newProdSku.trim() || !newProdPrice) return;
 
-    const added: Product = {
-      id: `prod-${Date.now()}`,
-      name: newProdName.trim(),
-      sku: newProdSku.trim().toUpperCase(),
-      price: Math.max(0.01, parseFloat(newProdPrice)),
-      quantity: Math.max(0, parseInt(newProdQty) || 0)
-    };
-
-    setProducts(prev => [...prev, added]);
-    setNewProdName('');
-    setNewProdSku('');
-    setNewProdPrice('');
-    setNewProdQty('');
-    setProductModalOpen(false);
+    try {
+      const added = await api.createProduct({
+        name: newProdName.trim(),
+        sku: newProdSku.trim().toUpperCase(),
+        price: Math.max(0.01, parseFloat(newProdPrice)),
+        quantity: Math.max(0, parseInt(newProdQty) || 0)
+      });
+      setProducts(prev => [...prev, added]);
+      setNewProdName('');
+      setNewProdSku('');
+      setNewProdPrice('');
+      setNewProdQty('');
+      setProductModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Error creating product.');
+    }
   };
 
-  const handleDeleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await api.deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Error during SKU removal.');
+    }
   };
 
-  const adjustStockLevel = (productId: string, delta: number) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        return { ...p, quantity: Math.max(0, p.quantity + delta) };
-      }
-      return p;
-    }));
+  const adjustStockLevel = async (productId: string, delta: number) => {
+    try {
+      const updated = await api.adjustProductStock(productId, delta);
+      setProducts(prev => prev.map(p => p.id === productId ? updated : p));
+    } catch (err: any) {
+      alert(err.message || 'Stock adjustments failed.');
+    }
   };
 
   // Interactive Draft Sales Order Creators
@@ -278,91 +234,45 @@ export default function App() {
     setOrderDraftItems(prev => prev.filter(item => item.productId !== productId));
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustId || orderDraftItems.length === 0) return;
 
-    const client = customers.find(c => c.id === selectedCustId);
-    if (!client) return;
+    try {
+      await api.placeOrder({
+        customerId: selectedCustId,
+        draftItems: orderDraftItems
+      });
 
-    // Check inventory availability in real-time
-    let validationPassed = true;
-    const validationErrors: string[] = [];
-    const modifiedProducts = [...products];
+      // Synchronize quantities with server state databases to maintain perfect inventory
+      const [pList, oList] = await Promise.all([
+        api.fetchProducts(),
+        api.fetchOrders()
+      ]);
+      setProducts(pList);
+      setOrders(oList);
 
-    const mappedItems: OrderItem[] = orderDraftItems.map((draft, idx) => {
-      const prIdx = modifiedProducts.findIndex(p => p.id === draft.productId);
-      const pr = modifiedProducts[prIdx];
-
-      if (!pr) {
-        validationPassed = false;
-        validationErrors.push("Selected item does not exist inside active index.");
-        return {} as OrderItem;
-      }
-
-      if (pr.quantity < draft.quantity) {
-        validationPassed = false;
-        validationErrors.push(`Limit stock exceeded for SKU: ${pr.sku}. Requested: ${draft.quantity}, Operational Stock: ${pr.quantity}`);
-      } else {
-        // Decrement warehouse state copy
-        modifiedProducts[prIdx] = { ...pr, quantity: pr.quantity - draft.quantity };
-      }
-
-      return {
-        id: `ord-item-${Date.now()}-${idx}`,
-        orderId: '', // To be filled immediately
-        productId: pr.id,
-        productName: pr.name,
-        quantity: draft.quantity,
-        price: pr.price
-      };
-    });
-
-    if (!validationPassed) {
-      alert(`WMS Stock Validation Error:\n${validationErrors.join('\n')}`);
-      return;
+      // Cleanup draft states
+      setOrderDraftItems([]);
+      setSelectedCustId('');
+      setOrderModalOpen(false);
+    } catch (err: any) {
+      alert(`WMS Stock Validation Error:\n${err.message}`);
     }
-
-    // Save subtracted product levels
-    setProducts(modifiedProducts);
-
-    const generatedOrderId = `ord-${Date.now().toString().slice(-4)}`;
-    const calcTotal = parseFloat(mappedItems.reduce((acc, current) => acc + (current.price * current.quantity), 0).toFixed(2));
-
-    const placement: Order = {
-      id: generatedOrderId,
-      customerId: selectedCustId,
-      customerName: client.companyName,
-      totalAmount: calcTotal,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-      orderItems: mappedItems.map(item => ({ ...item, orderId: generatedOrderId }))
-    };
-
-    setOrders(prev => [placement, ...prev]);
-
-    // Cleanup draft states
-    setOrderDraftItems([]);
-    setSelectedCustId('');
-    setOrderModalOpen(false);
   };
 
-  const handleUpdateOrderStatus = (id: string, newStatus: Order['status']) => {
-    const matchOrder = orders.find(o => o.id === id);
-    if (!matchOrder || matchOrder.status === newStatus) return;
-
-    // Rollback quantities helper if cancelled
-    if (newStatus === 'CANCELLED' && matchOrder.status !== 'CANCELLED') {
-      setProducts(prev => prev.map(p => {
-        const itemOrdered = matchOrder.orderItems.find(oi => oi.productId === p.id);
-        if (itemOrdered) {
-          return { ...p, quantity: p.quantity + itemOrdered.quantity };
-        }
-        return p;
-      }));
+  const handleUpdateOrderStatus = async (id: string, newStatus: Order['status']) => {
+    try {
+      await api.updateOrderStatus(id, newStatus);
+      const [pList, oList] = await Promise.all([
+        api.fetchProducts(),
+        api.fetchOrders()
+      ]);
+      setProducts(pList);
+      setOrders(oList);
+    } catch (err: any) {
+      alert(err.message || 'Status translation exception.');
     }
-
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
   };
 
   // KPIs Calculations
