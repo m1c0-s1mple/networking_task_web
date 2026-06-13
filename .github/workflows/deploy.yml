@@ -1,4 +1,4 @@
-name: Deploy to AWS EC2
+name: Deploy to EC2
 
 on:
   push:
@@ -10,19 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@master
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
+          username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
-            cd /home/ubuntu/app
+            cd /home/ec2-user/networking_task_web
+
             git pull origin main
-            sudo docker build -t web-app .
-            sudo docker stop web-app || true
-            sudo docker rm web-app || true
-            sudo docker run -d --name web-app -p 80:3000 web-app
+
+            sudo docker stop networking-app || true
+            sudo docker rm networking-app || true
+
+            sudo docker build -t networking-app .
+
+            sudo docker run -d \
+              --name networking-app \
+              -p 80:3000 \
+              --restart unless-stopped \
+              networking-app
